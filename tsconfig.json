@@ -18,6 +18,7 @@
     "noUnusedParameters": true,
     "importsNotUsedAsValues": "error",
     "checkJs": true,
+    "declaration": true,
     "outDir": "./lib"
   },
   "ts-node": {
