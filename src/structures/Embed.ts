@@ -7,8 +7,8 @@ class Embed {
   url?: string;
   author?: {
     name: string;
-    icon_url?: string;
-    url?: string;
+    icon_url?: string | undefined;
+    url?: string | undefined;
   };
 
   color?: number;

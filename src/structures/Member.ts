@@ -1,10 +1,10 @@
-import {
+import type {
   APIGuildMember,
   APIInteractionDataResolvedGuildMember,
   APIInteractionGuildMember,
-} from "discord-api-types";
-import { DiscordAPI } from "../util";
-import User from "./User";
+} from "discord-api-types/v10";
+import { DiscordAPI } from "../util.js";
+import User from "./User.js";
 
 class Member {
   #member:

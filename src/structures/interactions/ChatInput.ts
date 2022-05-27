@@ -3,14 +3,15 @@ import {
   APIChatInputApplicationCommandInteractionDataResolved,
   APIInteractionGuildMember,
   ApplicationCommandOptionType,
-} from "discord-api-types";
-import QuartzClient, {
+} from "discord-api-types/v10";
+import {
+  Client,
   CommandOption,
   inferOptions,
   Member,
   User,
-} from "../../";
-import BaseInteraction from "./BaseInteraction";
+} from "../../index.js";
+import BaseInteraction from "./BaseInteraction.js";
 
 class ChatInputInteraction<
   T extends Record<string, CommandOption<boolean>> | undefined,
@@ -23,7 +24,7 @@ class ChatInputInteraction<
     | APIChatInputApplicationCommandInteractionDataResolved
     | undefined;
   constructor(
-    client: QuartzClient,
+    client: Client,
     data: APIChatInputApplicationCommandInteraction,
     respond: ({ code, body }: { code: number; body: object }) => void
   ) {

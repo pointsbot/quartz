@@ -2,7 +2,7 @@ import {
   APIMessageComponentEmoji,
   ButtonStyle,
   ComponentType,
-} from "discord-api-types";
+} from "discord-api-types/v10";
 
 class Button {
   type = ComponentType.Button;

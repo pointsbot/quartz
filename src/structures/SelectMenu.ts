@@ -1,4 +1,4 @@
-import { APIPartialEmoji, ComponentType } from "discord-api-types";
+import { APIPartialEmoji, ComponentType } from "discord-api-types/v10";
 
 class SelectMenu {
   type = ComponentType.SelectMenu;
@@ -10,9 +10,9 @@ class SelectMenu {
   options?: {
     label: string;
     value: string;
-    description?: string;
-    emoji?: APIPartialEmoji;
-    default?: boolean;
+    description?: string | undefined;
+    emoji?: APIPartialEmoji | undefined;
+    default?: boolean | undefined;
   }[];
 
   constructor(data = {}) {
@@ -49,7 +49,7 @@ class SelectMenu {
     label: string,
     value: string,
     options?: {
-      description?: string;
+      description: string;
       emoji?: APIPartialEmoji;
       default?: boolean;
     }

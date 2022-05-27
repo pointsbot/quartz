@@ -1,6 +1,6 @@
-import { ComponentType } from "discord-api-types";
-import Button from "./Button";
-import SelectMenu from "./SelectMenu";
+import { ComponentType } from "discord-api-types/v10";
+import type Button from "./Button.js";
+import type SelectMenu from "./SelectMenu.js";
 
 class ActionRow {
   type = ComponentType.ActionRow;

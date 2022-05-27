@@ -1,4 +1,4 @@
-import { APIUser } from "discord-api-types";
+import type { APIUser } from "discord-api-types/v10";
 
 class User {
   #user: APIUser;

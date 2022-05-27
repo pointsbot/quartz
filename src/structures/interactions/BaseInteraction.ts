@@ -1,32 +1,31 @@
 import {
   APIApplicationCommandInteraction,
   APIChannel,
-  APIChatInputApplicationCommandInteraction,
   APIGuild,
   APIMessage,
   APIMessageComponentInteraction,
   InteractionResponseType,
-} from "discord-api-types";
-import QuartzClient, { Guild, Member, SendOptions, User } from "../../";
-import { DiscordAPI } from "../../util";
-import MessageComponentInteraction from "./MessageComponent";
+} from "discord-api-types/v10";
+import { Client, Guild, Member, SendOptions, User } from "../../index.js";
+import { DiscordAPI } from "../../util.js";
+import type MessageComponentInteraction from "./MessageComponent.js";
 
 class BaseInteraction {
   #respond: ({ code, body }: { code: number; body: object }) => void;
-  readonly client: QuartzClient;
+  readonly client: Client;
   readonly invokedAt: number = Date.now();
   #data: APIApplicationCommandInteraction | APIMessageComponentInteraction;
-  messageID?: string;
+  messageID?: string | undefined;
   user: User;
-  member?: Member;
+  member?: Member | undefined;
   readonly token?: string;
-  readonly guildID?: string;
+  readonly guildID?: string | undefined;
   readonly channelID: string;
   sent = false;
   deferred = false;
 
   constructor(
-    client: QuartzClient,
+    client: Client,
     data: APIApplicationCommandInteraction | APIMessageComponentInteraction,
     respond: ({ code, body }: { code: number; body: object }) => void
   ) {
@@ -95,7 +94,7 @@ class BaseInteraction {
     if (this.expired) throw new Error("Interaction already expired");
     if (!this.sent) {
       this.sent = true;
-      this.#respond({
+      return this.#respond({
         code: 200,
         body: {
           type: InteractionResponseType.ChannelMessageWithSource,
@@ -126,7 +125,7 @@ class BaseInteraction {
     allowedMentions,
     ephemeral,
     ...rest
-  }: SendOptions & { ephemeral?: boolean }) {
+  }: SendOptions & { ephemeral?: boolean | undefined }) {
     if (this.expired) throw new Error("Interaction already expired");
     const message = (
       await DiscordAPI.post<APIMessage>(

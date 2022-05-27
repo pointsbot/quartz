@@ -1,18 +1,4 @@
-import "dotenv/config";
-import QuartzClient, { ActionRow, Button, options } from "@points.city/quartz";
-
-const client: QuartzClient = new QuartzClient({
-  applicationID: process.env.DISCORD_APPLICATION_ID!,
-  publicKey: process.env.DISCORD_PUBLIC_KEY!,
-  token: process.env.DISCORD_TOKEN!,
-});
-
-client.middleware(async (ctx) => {
-  return {
-    next: true,
-    ctx: { owo: true },
-  };
-});
+import { ActionRow, Button, client, options } from "../../lib/index.js";
 
 client.command({
   name: "ping",
@@ -20,9 +6,14 @@ client.command({
   options: {
     foo: options.string({
       description: "bar",
+      required: true,
     }),
     user: options.user({
       description: "user to pong",
+      required: false,
+    }),
+    n: options.number({
+      description: "number to pong",
     }),
   },
   handler: async (ctx) => {
@@ -36,16 +27,15 @@ client.command({
         ),
       ],
     });
+
     await ctx.registerComponent({
       id: "test",
       handler: (btnCtx) => {
         btnCtx.editParent({
-          content: "lmao",
+          content: "tested",
           components: [],
         });
       },
     });
   },
 });
-
-client.listen(3003);

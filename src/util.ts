@@ -1,7 +1,7 @@
 import axios from "axios";
-import { IncomingHttpHeaders, IncomingMessage } from "http";
-import { Readable } from "stream";
-import nacl from "tweetnacl";
+import type { IncomingHttpHeaders } from "node:http";
+import type { Readable } from "node:stream";
+import nacl from "@pointsbot/tweetnacl";
 
 export const DiscordAPI = axios.create({
   baseURL: "https://discord.com/api/v9",

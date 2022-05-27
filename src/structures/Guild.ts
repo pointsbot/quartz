@@ -1,10 +1,10 @@
-import {
+import type {
   APIChannel,
   APIGuild,
   APIGuildMember,
   APIUser,
-} from "discord-api-types";
-import { DiscordAPI } from "../util";
+} from "discord-api-types/v10";
+import { DiscordAPI } from "../util.js";
 
 class Members {
   #guildID: string;

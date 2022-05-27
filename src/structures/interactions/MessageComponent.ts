@@ -3,9 +3,10 @@ import {
   APIMessageComponentInteraction,
   ComponentType,
   InteractionResponseType,
-} from "discord-api-types";
-import QuartzClient, { SendOptions } from "../../";
-import BaseInteraction from "./BaseInteraction";
+} from "discord-api-types/v10";
+import type { Client } from "../../index.js";
+import type { SendOptions } from "../../index.js";
+import BaseInteraction from "./BaseInteraction.js";
 
 class MessageComponentInteraction extends BaseInteraction {
   customID: string;
@@ -13,7 +14,7 @@ class MessageComponentInteraction extends BaseInteraction {
   _message: APIMessage;
   #respond: ({ code, body }: { code: number; body: object }) => void;
   constructor(
-    client: QuartzClient,
+    client: Client,
     data: APIMessageComponentInteraction,
     respond: ({ code, body }: { code: number; body: object }) => void
   ) {

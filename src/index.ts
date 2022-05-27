@@ -1,10 +1,4 @@
-import http, { IncomingMessage, ServerResponse } from "http";
-import {
-  Command,
-  CommandOption,
-  inferMiddlewareContextTypes,
-  MiddlewareFunction,
-} from "./commands";
+import http, { IncomingMessage, ServerResponse } from "node:http";
 import {
   APIPingInteraction,
   APIApplicationCommandInteraction,
@@ -13,21 +7,27 @@ import {
   ApplicationCommandType,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
   APIChatInputApplicationCommandInteraction,
-} from "discord-api-types";
+  APIApplicationCommandAutocompleteInteraction,
+} from "discord-api-types/v10";
+import { DiscordAPI, streamToString, verify } from "./util.js";
+import Guild from "./structures/Guild.js";
+import User from "./structures/User.js";
+import Member from "./structures/Member.js";
+import ActionRow from "./structures/ActionRow.js";
+import Button from "./structures/Button.js";
+import SelectMenu from "./structures/SelectMenu.js";
+import Embed from "./structures/Embed.js";
+import ChatInputInteraction from "./structures/interactions/ChatInput.js";
+import MessageComponentInteraction from "./structures/interactions/MessageComponent.js";
+import type {
+  inferMiddlewareContextTypes,
+  MiddlewareFunction,
+} from "./typings/middleware.js";
+import type { Command } from "./typings/command.js";
+import type { CommandOption } from "./typings/options.js";
 
-import { APIApplicationCommandAutocompleteInteraction } from "discord-api-types/payloads/v9/_interactions/autocomplete";
-import { DiscordAPI, streamToString, verify } from "./util";
-import Guild from "./structures/Guild";
-import User from "./structures/User";
-import Member from "./structures/Member";
-import ActionRow from "./structures/ActionRow";
-import Button from "./structures/Button";
-import SelectMenu from "./structures/SelectMenu";
-import Embed from "./structures/Embed";
-import ChatInputInteraction from "./structures/interactions/ChatInput";
-import MessageComponentInteraction from "./structures/interactions/MessageComponent";
-
-class QuartzClient {
+class Client {
+  commandsFolderName: string;
   applicationID: string;
   publicKey: string;
   token: string;
@@ -36,12 +36,12 @@ class QuartzClient {
     {
       handler: (ctx: MessageComponentInteraction) => void;
       expires: number;
-      expired?: () => void;
+      expired?: (() => void) | undefined;
     }
   > = new Map();
   middlewares: MiddlewareFunction<any, any>[] = [];
   private commands: Command<
-    Record<string, CommandOption<any>>,
+    Record<string, CommandOption<boolean>>,
     inferMiddlewareContextTypes<typeof this.middlewares>
   >[] = [];
 
@@ -49,11 +49,14 @@ class QuartzClient {
     applicationID,
     publicKey,
     token,
+    commandsFolderName,
   }: {
     applicationID: string;
     publicKey: string;
     token: string;
+    commandsFolderName?: string;
   }) {
+    this.commandsFolderName = commandsFolderName || "commands";
     this.applicationID = applicationID;
     this.publicKey = publicKey;
     this.token = token;
@@ -156,14 +159,8 @@ class QuartzClient {
     }
   }
 
-  listen(port: number = 3000, address: string = "localhost") {
-    if (process.argv.find((arg) => arg === "push")) {
-      import("./cli").then((cli) => cli.loadPush(this));
-      return;
-    } else if (process.argv.find((arg) => arg === "clear")) {
-      import("./cli").then((cli) => cli.loadClear(this));
-      return;
-    }
+  async listen(port: number = 3000, address: string = "localhost") {
+    if (process.env["CLEAR_ON_START"]) await this.overwriteCommands();
     http.createServer(this.handle).listen(port, address);
   }
 
@@ -186,13 +183,15 @@ class QuartzClient {
   generateCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
     return this.commands.map((command) => ({
       name: command.name,
+      name_localizations: command.nameLocalizations,
       description: command.description,
+      description_localizations: command.descriptionLocalizations,
       options: Object.entries(command.options ?? {}).map(([name, value]) => ({
         type: value.type,
         name,
         description: value.description,
         required: value.required ?? false,
-        ...("choices" in value
+        ...("choices" in value && value.choices
           ? {
               choices: Object.entries(value.choices).map(
                 ([key, { value }]: any) => ({
@@ -206,6 +205,8 @@ class QuartzClient {
         ...("minValue" in value ? { min_value: value.minValue } : {}),
         ...("maxValue" in value ? { max_value: value.maxValue } : {}),
       })) as any,
+      dm_permission: command.dmPermission ?? true,
+      default_member_permissions: command.defaultMemberPermissions,
       default_permission: command.defaultPermission ?? true,
       type: ApplicationCommandType.ChatInput,
     }));
@@ -256,6 +257,12 @@ class QuartzClient {
   }
 }
 
-export default QuartzClient;
-export * from "./commands";
-export { ActionRow, Button, SelectMenu, Guild, Member, User, Embed };
+export const client = new Client({
+  applicationID: process.env["DISCORD_APPLICATION_ID"]!,
+  publicKey: process.env["DISCORD_PUBLIC_KEY"]!,
+  token: process.env["DISCORD_TOKEN"]!,
+  commandsFolderName: process.env["COMMANDS_DIR"] ?? "commands",
+});
+
+export * from "./typings/index.js";
+export { Client, ActionRow, Button, SelectMenu, Guild, Member, User, Embed };
