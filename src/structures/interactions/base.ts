@@ -1,3 +1,4 @@
+import type { ServerResponse } from "node:http";
 import {
   APIApplicationCommandInteraction,
   APIChannel,
@@ -8,47 +9,69 @@ import {
 } from "discord-api-types/v10";
 import { Client, Guild, Member, SendOptions, User } from "../../index.js";
 import { DiscordAPI } from "../../util.js";
-import type MessageComponentInteraction from "./MessageComponent.js";
+import type MessageComponentInteraction from "./messageComponent.js";
 
-class BaseInteraction {
-  #respond: ({ code, body }: { code: number; body: object }) => void;
+export type BaseInteractionParams = {
+  res: ServerResponse;
+  interaction:
+    | APIApplicationCommandInteraction
+    | APIMessageComponentInteraction;
+  client: Client;
+};
+
+class BaseInteraction<DMPermission extends boolean | undefined> {
+  #res: ServerResponse;
+  #interaction:
+    | APIApplicationCommandInteraction
+    | APIMessageComponentInteraction;
+
   readonly client: Client;
   readonly invokedAt: number = Date.now();
-  #data: APIApplicationCommandInteraction | APIMessageComponentInteraction;
   messageID?: string | undefined;
+
   user: User;
-  member?: Member | undefined;
+  #member?: Member | undefined;
   readonly token?: string;
-  readonly guildID?: string | undefined;
   readonly channelID: string;
   sent = false;
   deferred = false;
 
-  constructor(
-    client: Client,
-    data: APIApplicationCommandInteraction | APIMessageComponentInteraction,
-    respond: ({ code, body }: { code: number; body: object }) => void
-  ) {
-    this.#data = data;
+  constructor({ client, res, interaction }: BaseInteractionParams) {
+    this.#interaction = interaction;
     this.client = client;
-    this.#respond = respond;
-    this.channelID = data.channel_id;
-    this.token = data.token;
-    this.guildID = "guild_id" in data ? data.guild_id : undefined;
-    this.member =
-      "guild_id" in data ? new Member(data.member!, data.guild_id!) : undefined;
-    this.user = new User("guild_id" in data ? data.member!.user : data.user!);
+    this.#res = res;
+
+    this.channelID = interaction.channel_id;
+    this.token = interaction.token;
+    this.#member =
+      "guild_id" in interaction
+        ? new Member(interaction.member!, interaction.guild_id!)
+        : undefined;
+    this.user = new User(
+      "guild_id" in interaction ? interaction.member!.user : interaction.user!
+    );
   }
 
   get expired() {
     return this.invokedAt + 1000 * 60 * 15 < Date.now();
   }
 
+  get guildID(): DMPermission extends false ? string : string | undefined {
+    return this.#interaction.guild_id as DMPermission extends false
+      ? string
+      : string | undefined;
+  }
+
+  get member(): DMPermission extends false ? Member : Member | undefined {
+    return this.#member as DMPermission extends false
+      ? Member
+      : Member | undefined;
+  }
+
   async guild() {
-    if (!("guild_id" in this.#data)) return;
-    if (!this.#data.guild_id) return;
+    if (!this.guildID) return;
     const rawGuild = (
-      await DiscordAPI.get<APIGuild>(`/guilds/${this.#data.guild_id}`, {
+      await DiscordAPI.get<APIGuild>(`/guilds/${this.guildID}`, {
         headers: {
           Authorization: `Bot ${this.client.token}`,
         },
@@ -60,19 +83,22 @@ class BaseInteraction {
 
   get locale() {
     return (
-      "guild_locale" in this.#data
-        ? (this.#data as any)?.guild_locale
-        : (this.#data as any).locale
+      "guild_locale" in this.#interaction
+        ? (this.#interaction as any)?.guild_locale
+        : (this.#interaction as any).locale
     ) as string;
   }
 
   async channel() {
     (
-      await DiscordAPI.get<APIChannel>(`/channels/${this.#data.channel_id}`, {
-        headers: {
-          Authorization: `Bot ${this.client.token}`,
-        },
-      })
+      await DiscordAPI.get<APIChannel>(
+        `/channels/${this.#interaction.channel_id}`,
+        {
+          headers: {
+            Authorization: `Bot ${this.client.token}`,
+          },
+        }
+      )
     ).data;
   }
 
@@ -94,9 +120,10 @@ class BaseInteraction {
     if (this.expired) throw new Error("Interaction already expired");
     if (!this.sent) {
       this.sent = true;
-      return this.#respond({
-        code: 200,
-        body: {
+      this.#res.statusCode = 200;
+      this.#res.setHeader("content-type", "application/json");
+      this.#res.end(
+        JSON.stringify({
           type: InteractionResponseType.ChannelMessageWithSource,
           data: {
             content: "content" in rest ? rest.content : undefined,
@@ -105,8 +132,9 @@ class BaseInteraction {
             components: "components" in rest ? rest.components : undefined,
             flags: ephemeral ? 1 << 6 : undefined,
           },
-        },
-      });
+        })
+      );
+      return;
     } else if (this.sent && this.deferred) {
       return this.edit({
         allowedMentions,
@@ -193,15 +221,17 @@ class BaseInteraction {
     if (!this.sent && !this.deferred) {
       this.sent = true;
       this.deferred = true;
-      this.#respond({
-        code: 200,
-        body: {
+      this.#res.statusCode = 200;
+      this.#res.setHeader("content-type", "application/json");
+      this.#res.end(
+        JSON.stringify({
           type: InteractionResponseType.DeferredChannelMessageWithSource,
           data: {
             flags: ephemeral ? 1 << 6 : undefined,
           },
-        },
-      });
+        })
+      );
+      return;
     }
   }
 
@@ -212,7 +242,7 @@ class BaseInteraction {
     expired,
   }: {
     id: string;
-    handler: (ctx: MessageComponentInteraction) => void;
+    handler: (ctx: MessageComponentInteraction<DMPermission>) => void;
     expiration?: number;
     expired?: () => void;
   }) {

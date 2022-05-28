@@ -4,36 +4,45 @@ import {
   ComponentType,
   InteractionResponseType,
 } from "discord-api-types/v10";
+import type { ServerResponse } from "node:http";
 import type { Client } from "../../index.js";
 import type { SendOptions } from "../../index.js";
-import BaseInteraction from "./BaseInteraction.js";
+import BaseInteraction from "./base.js";
 
-class MessageComponentInteraction extends BaseInteraction {
+class MessageComponentInteraction<
+  DMPermission extends boolean | undefined
+> extends BaseInteraction<DMPermission> {
   customID: string;
   componentType: ComponentType;
   _message: APIMessage;
-  #respond: ({ code, body }: { code: number; body: object }) => void;
-  constructor(
-    client: Client,
-    data: APIMessageComponentInteraction,
-    respond: ({ code, body }: { code: number; body: object }) => void
-  ) {
-    super(client, data, respond);
-    this.customID = data.data.custom_id;
-    this.componentType = data.data.component_type;
-    this._message = data.message;
-    this.#respond = respond;
+  #res: ServerResponse;
+
+  constructor({
+    interaction,
+    client,
+    res,
+  }: {
+    client: Client;
+    interaction: APIMessageComponentInteraction;
+    res: ServerResponse;
+  }) {
+    super({ interaction, client, res });
+    this.customID = interaction.data.custom_id;
+    this.componentType = interaction.data.component_type;
+    this._message = interaction.message;
+    this.#res = res;
   }
 
   async ack() {
     if (!this.sent) {
       this.sent = true;
-      await this.#respond({
-        code: 200,
-        body: {
+      this.#res.statusCode = 200;
+      this.#res.setHeader("content-type", "application/json");
+      this.#res.end(
+        JSON.stringify({
           type: InteractionResponseType.DeferredMessageUpdate,
-        },
-      });
+        })
+      );
     }
   }
 
@@ -41,9 +50,10 @@ class MessageComponentInteraction extends BaseInteraction {
     if (this.expired) throw new Error("Interaction already expired");
 
     if (!this.sent) {
-      await this.#respond({
-        code: 200,
-        body: {
+      this.#res.statusCode = 200;
+      this.#res.setHeader("content-type", "application/json");
+      this.#res.end(
+        JSON.stringify({
           type: InteractionResponseType.UpdateMessage,
           data: {
             content: "content" in rest ? rest.content : undefined,
@@ -51,8 +61,8 @@ class MessageComponentInteraction extends BaseInteraction {
             components: "components" in rest ? rest.components : undefined,
             allowed_mentions: allowedMentions,
           },
-        },
-      });
+        })
+      );
       return;
     } else {
       await this.edit(rest, this._message.id);

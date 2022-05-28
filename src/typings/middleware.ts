@@ -1,4 +1,4 @@
-import type ChatInputInteraction from "../structures/interactions/ChatInput";
+import type ChatInputInteraction from "../structures/interactions/chatInput";
 import type { CommandOptions } from "./options";
 
 export type MiddlewareResponse<T extends object> =
@@ -11,17 +11,26 @@ export type MiddlewareResponse<T extends object> =
     };
 
 export type MiddlewareFunction<
-  T extends CommandOptions | undefined,
-  U extends object
-> = (ctx: ChatInputInteraction<T, U>) => Promise<MiddlewareResponse<U>>;
+  DMPermission extends boolean | undefined,
+  CmdOpts extends CommandOptions | undefined,
+  Ctx extends object
+> = (
+  ctx: ChatInputInteraction<DMPermission, CmdOpts, Ctx>
+) => Promise<MiddlewareResponse<Ctx>>;
 
-export type inferMiddlewareContextType<T extends MiddlewareFunction<any, any>> =
-  T extends MiddlewareFunction<any, infer U> ? U : {};
+export type inferMiddlewareContextType<
+  DMPermission extends boolean | undefined,
+  T extends MiddlewareFunction<DMPermission, any, any>
+> = T extends MiddlewareFunction<DMPermission, any, infer U> ? U : {};
 
 export type inferMiddlewareContextTypes<
-  T extends MiddlewareFunction<any, any>[]
-> = inferMiddlewareContextType<T[number]>;
+  DMPermission extends boolean | undefined,
+  T extends MiddlewareFunction<DMPermission, any, any>[]
+> = inferMiddlewareContextType<DMPermission, T[number]>;
 
-export type constructMiddleware<T extends MiddlewareFunction<any, any>[]> = {
+export type constructMiddleware<
+  DMPermission extends boolean | undefined,
+  T extends MiddlewareFunction<DMPermission, any, any>[]
+> = {
   middlewares: T;
 };

@@ -9,7 +9,7 @@ import type {
 import type ActionRow from "../structures/ActionRow";
 import type Button from "../structures/Button";
 import type Guild from "../structures/Guild";
-import type ChatInputInteraction from "../structures/interactions/ChatInput";
+import type ChatInputInteraction from "../structures/interactions/chatInput";
 import type Member from "../structures/Member";
 import type SelectMenu from "../structures/SelectMenu";
 import type User from "../structures/User";
@@ -39,6 +39,7 @@ export interface FollowUp {
 }
 
 export interface HandlerContext<
+  DMPermission extends boolean,
   Options extends CommandOptions | undefined,
   MiddlewareContext extends object
 > {
@@ -46,16 +47,17 @@ export interface HandlerContext<
   context: MiddlewareContext;
   options: inferOptions<Options>;
   channelID: string;
-  guildID?: string;
+  guildID: DMPermission extends false ? string : string | undefined;
   channel: () => Promise<APIChannel>;
   guild: () => Promise<Guild | undefined>;
   user?: User;
-  member?: Member;
+  member: DMPermission extends false ? Member : Member | undefined;
   send(options: SendOptions & { ephemeral?: boolean }): FollowUp;
   defer(ephemeral?: boolean): FollowUp;
 }
 
 export interface Command<
+  DMPermission extends boolean | undefined,
   Options extends CommandOptions | undefined,
   U extends object
 > {
@@ -68,7 +70,7 @@ export interface Command<
    * @deprecated Use `dmPermission` and `defaultMemberPermissions` instead
    */
   defaultPermission?: boolean;
-  dmPermission?: boolean;
+  dmPermission?: DMPermission;
   defaultMemberPermissions?: Permissions;
-  handler: (ctx: ChatInputInteraction<Options, U>) => void;
+  handler: (ctx: ChatInputInteraction<DMPermission, Options, U>) => void;
 }

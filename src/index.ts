@@ -17,14 +17,14 @@ import ActionRow from "./structures/ActionRow.js";
 import Button from "./structures/Button.js";
 import SelectMenu from "./structures/SelectMenu.js";
 import Embed from "./structures/Embed.js";
-import ChatInputInteraction from "./structures/interactions/ChatInput.js";
-import MessageComponentInteraction from "./structures/interactions/MessageComponent.js";
+import ChatInputInteraction from "./structures/interactions/chatInput.js";
+import MessageComponentInteraction from "./structures/interactions/messageComponent.js";
 import type {
   inferMiddlewareContextTypes,
   MiddlewareFunction,
 } from "./typings/middleware.js";
 import type { Command } from "./typings/command.js";
-import type { CommandOption } from "./typings/options.js";
+import type { CommandOptions } from "./typings/options.js";
 
 class Client {
   commandsFolderName: string;
@@ -34,15 +34,16 @@ class Client {
   components: Map<
     string,
     {
-      handler: (ctx: MessageComponentInteraction) => void;
+      handler: (ctx: MessageComponentInteraction<any>) => void;
       expires: number;
       expired?: (() => void) | undefined;
     }
   > = new Map();
-  middlewares: MiddlewareFunction<any, any>[] = [];
+  middlewares: MiddlewareFunction<any, any, any>[] = [];
   private commands: Command<
-    Record<string, CommandOption<boolean>>,
-    inferMiddlewareContextTypes<typeof this.middlewares>
+    boolean,
+    CommandOptions,
+    inferMiddlewareContextTypes<boolean, typeof this.middlewares>
   >[] = [];
 
   constructor({
@@ -98,16 +99,12 @@ class Client {
               return;
             }
 
-            const handlerContext = new ChatInputInteraction(
-              this,
-              interaction as APIChatInputApplicationCommandInteraction,
-              ({ code, body }) => {
-                res.statusCode = code;
-                res.setHeader("content-type", "application/json");
-                res.end(JSON.stringify(body));
-                return;
-              }
-            );
+            const handlerContext = new ChatInputInteraction({
+              client: this,
+              interaction:
+                interaction as APIChatInputApplicationCommandInteraction,
+              res,
+            });
 
             for (const middleware of this.middlewares) {
               const res = await middleware(handlerContext);
@@ -136,16 +133,11 @@ class Client {
             `${interaction.message.id}-${interaction.data.custom_id}`
           )
         ) {
-          const handlerContext = new MessageComponentInteraction(
-            this,
-            interaction as APIMessageComponentInteraction,
-            ({ code, body }) => {
-              res.statusCode = code;
-              res.setHeader("content-type", "application/json");
-              res.end(JSON.stringify(body));
-              return;
-            }
-          );
+          const handlerContext = new MessageComponentInteraction({
+            client: this,
+            interaction: interaction as APIMessageComponentInteraction,
+            res,
+          });
           return this.components
             .get(`${interaction.message.id}-${interaction.data.custom_id}`)
             ?.handler(handlerContext);
@@ -164,16 +156,24 @@ class Client {
     http.createServer(this.handle).listen(port, address);
   }
 
-  command<T extends Record<string, CommandOption<boolean>> | undefined>(
-    options: Command<T, inferMiddlewareContextTypes<this["middlewares"]>>
+  command<
+    GuildOnly extends boolean | undefined,
+    Options extends CommandOptions | undefined
+  >(
+    options: Command<
+      GuildOnly,
+      Options,
+      inferMiddlewareContextTypes<boolean, this["middlewares"]>
+    >
   ) {
     this.commands.push(options as any);
   }
 
-  middleware<T extends object>(
+  middleware<GuildOnly extends boolean | undefined, T extends object>(
     this: this,
     middleware: MiddlewareFunction<
-      inferMiddlewareContextTypes<this["middlewares"]>,
+      GuildOnly,
+      inferMiddlewareContextTypes<boolean, this["middlewares"]>,
       T
     >
   ): asserts this is this & { middlewares: typeof middleware[] } {

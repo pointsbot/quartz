@@ -1,38 +1,35 @@
+import type { CommandOptions } from "../../typings/options";
 import {
   APIChatInputApplicationCommandInteraction,
   APIChatInputApplicationCommandInteractionDataResolved,
   APIInteractionGuildMember,
   ApplicationCommandOptionType,
 } from "discord-api-types/v10";
-import {
-  Client,
-  CommandOption,
-  inferOptions,
-  Member,
-  User,
-} from "../../index.js";
-import BaseInteraction from "./BaseInteraction.js";
+import { Client, inferOptions, Member, User } from "../../index.js";
+import BaseInteraction from "./base.js";
+import type { ServerResponse } from "node:http";
 
 class ChatInputInteraction<
-  T extends Record<string, CommandOption<boolean>> | undefined,
+  DMPermission extends boolean | undefined,
+  T extends CommandOptions | undefined,
   U extends object
-> extends BaseInteraction {
+> extends BaseInteraction<DMPermission> {
   name: string;
   context?: U;
   options: inferOptions<T>;
   readonly resolved:
     | APIChatInputApplicationCommandInteractionDataResolved
     | undefined;
-  constructor(
-    client: Client,
-    data: APIChatInputApplicationCommandInteraction,
-    respond: ({ code, body }: { code: number; body: object }) => void
-  ) {
-    super(client, data, respond);
-    this.name = data.data.name;
-    this.resolved = data.data.resolved;
+  constructor(params: {
+    client: Client;
+    interaction: APIChatInputApplicationCommandInteraction;
+    res: ServerResponse;
+  }) {
+    super(params);
+    this.name = params.interaction.data.name;
+    this.resolved = params.interaction.data.resolved;
     this.options = Object.fromEntries(
-      data.data.options?.map((option) => {
+      params.interaction.data.options?.map((option) => {
         if (
           option.type !== ApplicationCommandOptionType.Subcommand &&
           option.type !== ApplicationCommandOptionType.SubcommandGroup
